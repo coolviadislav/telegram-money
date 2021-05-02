@@ -50,12 +50,30 @@
             }
         }
 
+        // Считат доход и расход за неделю, выводит итог
+        if((substr($text,0,6) === "/stat ")){
+            $days = intval(ltrim($text, "/stat "));
+
+            if($days > 0) {
+                // Считает сумму входящих значение за дни
+                $sumIn = $db->getOne("SELECT SUM(cost) as `in_sum` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'IN'", $days);
+                // Считает сумму исходящих значение за дни
+                $sumOut = $db->getOne("SELECT SUM(cost) as `out_sum` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'OUT'", $days);
+                
+                $total = intval($sumIn) - intval($sumOut);
+
+                sendMessage($userId, sprintf("Доход - %s; Расход - %s; Итог - %s;", $sumIn, $sumOut, $total), $config['bot_token']);
+            } else {
+                sendMessage($userId, "❌ Неправильна команда ❌", $config['bot_token']);
+            }
+        }
+
     } else {
         sendMessage($userId, "У вас нет доступа", $config['bot_token']);
     }
 
     // Функция отпрвки сообщения в телеграм 
     function sendMessage($userId, $text, $botToken){
-        file_get_contents(sprintf('https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s', $botToken, $userId, $text));
+        file_get_contents(sprintf('https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s', $botToken, $userId, urlencode($text)));
     }
     

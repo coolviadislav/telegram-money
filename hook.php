@@ -19,6 +19,7 @@
     
     // Проверка на права, записан ли id в конфиге
     if($userId === $config['user_id']) {
+
         // Запомнить входящий платеж в рублях и указать к ней комментарий
         if(substr($text,0,4) === '/in '){
             $matches = [];
@@ -33,6 +34,22 @@
                 sendMessage($userId, "❌ Неправильна команда ❌", $config['bot_token']);
             }
         }
+        
+        // Запомнить исходящий платеж в рублях и указать к ней комментарий
+        if(substr($text,0,5) === '/out '){
+            $matches = [];
+            preg_match_all('/(^[0-9]+ )(.+)/', ltrim($text, "/out "), $matches);
+    
+            if(isset($matches[1][0]) && isset($matches[2][0])){
+                $cost = intval($matches[1][0]);
+                $comment = trim($matches[2][0]);
+                
+                $db->query("INSERT INTO `costs`(`type`, `comment`, `cost`) VALUES (?s, ?s, ?i)", "OUT", $comment, $cost);
+            } else {
+                sendMessage($userId, "❌ Неправильна команда ❌", $config['bot_token']);
+            }
+        }
+
     } else {
         sendMessage($userId, "У вас нет доступа", $config['bot_token']);
     }

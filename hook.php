@@ -57,12 +57,31 @@
             if($days > 0) {
                 // Считает сумму входящих значение за дни
                 $sumIn = $db->getOne("SELECT SUM(cost) as `in_sum` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'IN'", $days);
+                
                 // Считает сумму исходящих значение за дни
                 $sumOut = $db->getOne("SELECT SUM(cost) as `out_sum` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'OUT'", $days);
                 
+                // Cредний доход в день
+                $avgDayInArray = $db->getCol("SELECT AVG(cost) as `avg_cost` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'IN' GROUP BY DATE(created_at)", $days);
+                $avgDayIn = array_sum($avgDayInArray) / count($avgDayInArray);
+                
+                // Cредний расход в день
+                $avgDayOutArray = $db->getCol("SELECT AVG(cost) as `avg_cost` FROM costs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ?i DAY) AND created_at <= CURDATE() AND type = 'OUT' GROUP BY DATE(created_at)", $days);
+                $avgDayOut = array_sum($avgDayOutArray) / count($avgDayOutArray);
+                
                 $total = intval($sumIn) - intval($sumOut);
 
-                sendMessage($userId, sprintf("Доход - %s; Расход - %s; Итог - %s;", $sumIn, $sumOut, $total), $config['bot_token']);
+                $message = "";
+                $message .= sprintf("💰 Баланс за %s %s \n\n", $days, getDaysTextFormatted($days));
+                
+                $message .= sprintf("Доход: %s руб. \n", priceFormat($sumIn));
+                $message .= sprintf("Расход: %s руб. \n", priceFormat($sumOut));
+                $message .= sprintf("Итог: %s руб. \n\n", priceFormat($total));
+
+                $message .= sprintf("Средний доход за день: %s руб. \n", priceFormat(round($avgDayIn, 0)));
+                $message .= sprintf("Средний расход за день: %s руб. \n", priceFormat(round($avgDayOut, 0)));
+
+                sendMessage($userId, $message, $config['bot_token']);
             } else {
                 sendMessage($userId, "❌ Неправильна команда ❌", $config['bot_token']);
             }
@@ -74,6 +93,21 @@
 
     // Функция отпрвки сообщения в телеграм 
     function sendMessage($userId, $text, $botToken){
-        file_get_contents(sprintf('https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s', $botToken, $userId, urlencode($text)));
+        file_get_contents(sprintf('https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s&parse_mode=markdown', $botToken, $userId, urlencode($text)));
     }
     
+    // Форматирование числа в человеко-понятный вид. Разделяет тысячи по три знака
+    function priceFormat($price) {
+        return number_format($price, 0, ',', ' ');
+    }
+
+    // Форматирование вывода слово "день" в зависимости от его кол-ва
+    function getDaysTextFormatted($days) {
+        if($days === 1) {
+            return 'день';
+        } else if($days >= 2 AND $days <= 4) {
+            return 'дня';
+        } else {
+            return 'дней';
+        }
+    }
